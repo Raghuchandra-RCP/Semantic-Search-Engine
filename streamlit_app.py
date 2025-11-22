@@ -204,11 +204,11 @@ def main():
             """)
             
             if st.button("📥 Download Sample Dataset", type="primary"):
-            if download_dataset():
-                # Clear the cache so search engine reinitializes
-                initialize_search_engine.clear()
-                st.session_state.search_engine = None
-                st.rerun()
+                if download_dataset():
+                    # Clear the cache so search engine reinitializes
+                    initialize_search_engine.clear()
+                    st.session_state.search_engine = None
+                    st.rerun()
         else:
             st.info("""
             **Documents found but search engine failed to initialize.**
