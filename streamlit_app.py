@@ -284,14 +284,8 @@ def main():
                             st.markdown(f"**ID:** `{result['doc_id']}`")
                         
                         with col2:
-                            # Use scaled_score if available, otherwise calculate from score
-                            if 'scaled_score' in result:
-                                score_display = result['scaled_score']
-                            else:
-                                # Fallback: scale 0.2-1.0 range to 0-100
-                                raw_score = result['score']
-                                score_display = max(0, min(100, ((raw_score - 0.2) / 0.8) * 100))
-                            st.markdown(f'<div class="score-badge">Score: {score_display:.1f}%</div>', unsafe_allow_html=True)
+                            score_percent = result['score'] * 100
+                            st.markdown(f'<div class="score-badge">Score: {score_percent:.1f}%</div>', unsafe_allow_html=True)
                         
                         st.markdown("**Preview:**")
                         preview_text = result['preview'] if len(result['preview']) > 20 else "Preview not available"
