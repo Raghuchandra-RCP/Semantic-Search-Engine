@@ -220,9 +220,16 @@ class VectorSearchEngine:
                 else:
                     preview = "Preview not available"
                 
+                if score >= 0.2:
+                    scaled_score = ((score - 0.2) / 0.8) * 100
+                else:
+                    scaled_score = (score / 0.2) * 25
+                scaled_score = max(0, min(100, scaled_score))
+                
                 results.append({
                     "doc_id": doc_id,
                     "score": float(score),
+                    "scaled_score": float(scaled_score),
                     "preview": preview,
                     "filename": doc.get("filename", ""),
                     "length": doc.get("length", 0)

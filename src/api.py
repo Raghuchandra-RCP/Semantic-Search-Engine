@@ -110,12 +110,30 @@ class SearchAPI:
         overlap_ratio = len(matched_keywords) / (len(query_words) or 1)
         length_norm = 1.0 / (1.0 + math.log1p(max(doc_length, 1) / 100))
         
+        scaled_score = max(0, min(100, ((score - 0.2) / 0.8) * 100)) if score >= 0.2 else score * 100
+        explanation_parts = []
+        explanation_parts.append(f"Similarity score: {scaled_score:.1f}/100 (raw: {score:.4f})")
+        
+        if matched_keywords:
+            keywords_str = ", ".join(matched_keywords)
+            explanation_parts.append(f"Matched keywords: {keywords_str}")
+            explanation_parts.append(f"Query overlap: {overlap_ratio * 100:.1f}%")
+        else:
+            explanation_parts.append("No exact keyword matches (semantic similarity only)")
+        
+        explanation_parts.append(f"Document length: {doc_length} characters")
+        explanation_parts.append(f"Length normalization: {length_norm:.3f}")
+        
+        explanation_text = ". ".join(explanation_parts) + "."
+        
         return {
             "matched_keywords": matched_keywords,
             "overlap_ratio": round(overlap_ratio, 3),
             "document_length": doc_length,
             "length_normalization_score": round(length_norm, 3),
-            "similarity_score": round(score, 4)
+            "similarity_score": round(score, 4),
+            "scaled_score": round(scaled_score, 1),
+            "explanation_text": explanation_text
         }
 
 
