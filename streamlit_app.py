@@ -1,15 +1,24 @@
 import streamlit as st
 from pathlib import Path
-from src.preprocessor import DocumentPreprocessor
-from src.embedder import EmbeddingGenerator
-from src.search_engine import VectorSearchEngine
+import sys
+import traceback
 
+# Set page config first
 st.set_page_config(
     page_title="Semantic Search Engine",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Import with error handling
+try:
+    from src.preprocessor import DocumentPreprocessor
+    from src.embedder import EmbeddingGenerator
+    from src.search_engine import VectorSearchEngine
+except ImportError as e:
+    st.error(f"Import error: {e}")
+    st.stop()
 
 st.markdown("""
     <style>
@@ -63,38 +72,63 @@ def initialize_search_engine():
     try:
         docs_folder = "data/docs"
         if not Path(docs_folder).exists():
-            st.error(f"Documents folder not found: {docs_folder}")
-            st.info("Please run: python download_dataset.py")
             return None
         
-        preprocessor = DocumentPreprocessor(docs_folder)
-        documents = preprocessor.load_documents()
-        documents_dict = {doc["doc_id"]: doc for doc in documents}
+        txt_files = list(Path(docs_folder).glob("*.txt"))
+        if not txt_files:
+            return None
         
-        embedder = EmbeddingGenerator()
-        search_engine = VectorSearchEngine(embedder)
-        
-        index_file = Path("models/faiss_index.bin")
-        mapping_file = Path("models/doc_id_mapping.json")
-        
-        if index_file.exists() and mapping_file.exists():
+        try:
+            preprocessor = DocumentPreprocessor(docs_folder)
+            documents = preprocessor.load_documents()
+            
+            if not documents:
+                return None
+                
+            documents_dict = {doc["doc_id"]: doc for doc in documents}
+            
+            # Initialize embedder with error handling
             try:
-                search_engine.load_index(documents_dict)
-                return search_engine
+                embedder = EmbeddingGenerator()
             except Exception as e:
-                st.warning(f"Could not load existing index: {e}")
-                st.info("Rebuilding index...")
-                embeddings = embedder.embed_batch(documents)
-                search_engine.build_index(documents, embeddings)
-        else:
-            with st.spinner("Building index (this may take a few minutes on first run)..."):
-                embeddings = embedder.embed_batch(documents)
-                search_engine.build_index(documents, embeddings)
+                st.error(f"Failed to load embedding model: {e}")
+                return None
+            
+            search_engine = VectorSearchEngine(embedder)
+            
+            index_file = Path("models/faiss_index.bin")
+            mapping_file = Path("models/doc_id_mapping.json")
+            
+            if index_file.exists() and mapping_file.exists():
+                try:
+                    search_engine.load_index(documents_dict)
+                    return search_engine
+                except Exception as e:
+                    st.warning(f"Could not load existing index: {e}")
+                    st.info("Rebuilding index...")
+                    try:
+                        embeddings = embedder.embed_batch(documents)
+                        search_engine.build_index(documents, embeddings)
+                        return search_engine
+                    except Exception as e:
+                        st.error(f"Failed to build index: {e}")
+                        return None
+            else:
+                with st.spinner("Building index (this may take a few minutes on first run)..."):
+                    try:
+                        embeddings = embedder.embed_batch(documents)
+                        search_engine.build_index(documents, embeddings)
+                        return search_engine
+                    except Exception as e:
+                        st.error(f"Failed to build index: {e}")
+                        return None
         
-        return search_engine
+        except Exception as e:
+            st.error(f"Error processing documents: {e}")
+            return None
+            
     except Exception as e:
         st.error(f"Error initializing search engine: {e}")
-        import traceback
         with st.expander("Error Details"):
             st.code(traceback.format_exc())
         return None
@@ -109,6 +143,21 @@ def main():
             st.session_state.search_engine = initialize_search_engine()
     
     if st.session_state.search_engine is None:
+        st.warning("⚠️ Search engine not initialized")
+        st.info("""
+        **To use this app, you need to:**
+        1. Ensure the `data/docs/` folder exists with `.txt` files
+        2. The app will automatically build the search index on first run
+        
+        If you're deploying to Streamlit Cloud, make sure to:
+        - Include your data files in the repository, or
+        - Upload them through the Streamlit Cloud file manager
+        """)
+        
+        if st.button("🔄 Retry Initialization"):
+            st.session_state.search_engine = None
+            st.rerun()
+        
         st.stop()
     
     search_engine = st.session_state.search_engine

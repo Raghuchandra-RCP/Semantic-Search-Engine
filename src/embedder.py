@@ -11,8 +11,18 @@ class EmbeddingGenerator:
                  max_seq_length: int = 512,
                  chunk_overlap: int = 50):
         print(f"Loading embedding model: {model_name}")
-        self.model = SentenceTransformer(model_name)
-        self.cache_manager = CacheManager(cache_db=cache_db)
+        try:
+            self.model = SentenceTransformer(model_name)
+        except Exception as e:
+            print(f"Error loading model {model_name}: {e}")
+            raise RuntimeError(f"Failed to load embedding model: {e}") from e
+        
+        try:
+            self.cache_manager = CacheManager(cache_db=cache_db)
+        except Exception as e:
+            print(f"Warning: Could not initialize cache manager: {e}")
+            raise RuntimeError(f"Failed to initialize cache: {e}") from e
+        
         self.max_seq_length = max_seq_length
         self.chunk_overlap = chunk_overlap
         print(f"Embedding generator initialized (max_seq_length={max_seq_length}, chunk_overlap={chunk_overlap})")
