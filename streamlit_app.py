@@ -248,6 +248,51 @@ def main():
             st.metric("Cached", cache_stats["total_entries"])
         
         st.markdown("---")
+        st.subheader("🔄 Rebuild Index")
+        st.caption("Clear cache and rebuild with updated chunking")
+        
+        if st.button("🗑️ Clear Cache & Rebuild", type="secondary", use_container_width=True):
+            with st.spinner("Clearing cache and rebuilding index..."):
+                try:
+                    # Clear Streamlit cache
+                    initialize_search_engine.clear()
+                    
+                    # Clear embeddings cache
+                    import os
+                    cache_files = [
+                        "cache/embeddings_cache.db",
+                        "cache/embeddings_cache.db-shm",
+                        "cache/embeddings_cache.db-wal",
+                        "cache/embeddings_cache.json"
+                    ]
+                    for cache_file in cache_files:
+                        cache_path = Path(cache_file)
+                        if cache_path.exists():
+                            os.remove(cache_path)
+                    
+                    # Clear FAISS index
+                    index_files = [
+                        "models/faiss_index.bin",
+                        "models/doc_id_mapping.json"
+                    ]
+                    for index_file in index_files:
+                        index_path = Path(index_file)
+                        if index_path.exists():
+                            os.remove(index_path)
+                    
+                    # Reset search engine
+                    st.session_state.search_engine = None
+                    
+                    st.success("✅ Cache cleared! Reinitializing search engine...")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Error clearing cache: {e}")
+                    import traceback
+                    with st.expander("Error Details"):
+                        st.code(traceback.format_exc())
+        
+        st.markdown("---")
         st.caption("Built with FAISS & Sentence Transformers")
     
     search_container = st.container()

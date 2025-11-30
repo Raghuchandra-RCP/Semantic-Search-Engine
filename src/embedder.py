@@ -149,8 +149,7 @@ class EmbeddingGenerator:
         chunks = []
         current_chunk_sentences = []
         current_token_count = 0
-        # Use chunk_overlap directly (already in tokens), but ensure it's not too large
-        overlap_tokens = min(self.chunk_overlap, chunk_size // 2)  # Overlap should be at most half the chunk size
+        overlap_tokens = min(self.chunk_overlap, chunk_size // 2)
         
         i = 0
         while i < len(sentence_tokens):
@@ -164,7 +163,6 @@ class EmbeddingGenerator:
                 word_chunk_tokens = 0
                 
                 for word in words:
-                    # Count tokens for the actual joined text (tokenizer-based, no estimation)
                     test_chunk = word_chunk + [word]
                     test_chunk_text = " ".join(test_chunk)
                     test_chunk_tokens = self._count_tokens(test_chunk_text)
@@ -175,7 +173,6 @@ class EmbeddingGenerator:
                         chunks.append(chunk_text)
                         
                         # Start new chunk with overlap (last few words)
-                        # Count tokens for overlap chunks using tokenizer
                         overlap_words = []
                         for w in reversed(word_chunk):
                             test_overlap = overlap_words + [w]
@@ -193,7 +190,6 @@ class EmbeddingGenerator:
                             word_chunk_tokens = 0
                     
                     word_chunk.append(word)
-                    # Update token count for actual joined text
                     word_chunk_tokens = self._count_tokens(" ".join(word_chunk))
                 
                 # Add remaining words as current chunk
@@ -204,7 +200,7 @@ class EmbeddingGenerator:
                 i += 1
                 continue
             
-            # Check if adding this sentence would exceed chunk size (use tokenizer for actual joined text)
+            # Check if adding this sentence would exceed chunk size
             test_chunk = current_chunk_sentences + [sentence]
             test_chunk_text = " ".join(test_chunk)
             test_chunk_tokens = self._count_tokens(test_chunk_text)
@@ -214,8 +210,6 @@ class EmbeddingGenerator:
                 chunk_text = " ".join(current_chunk_sentences)
                 chunks.append(chunk_text)
                 
-                # Create overlap: take sentences from end of previous chunk
-                # Count tokens for actual joined overlap text using tokenizer
                 overlap_sentences = []
                 for j in range(len(current_chunk_sentences) - 1, -1, -1):
                     sent = current_chunk_sentences[j]
@@ -235,7 +229,6 @@ class EmbeddingGenerator:
             
             # Add sentence to current chunk
             current_chunk_sentences.append(sentence)
-            # Update token count for actual joined text (tokenizer-based)
             current_token_count = self._count_tokens(" ".join(current_chunk_sentences))
             i += 1
         
@@ -258,12 +251,10 @@ class EmbeddingGenerator:
                 print(f"    ⚠ Chunk exceeded {chunk_size} tokens ({chunk_tokens}), splitting further...")
                 
                 # Split into smaller chunks at word boundaries
-                # Use tokenizer to count tokens for actual joined text
                 words = chunk.split()
                 word_chunk = []
                 
                 for word in words:
-                    # Count tokens for the actual joined text (tokenizer-based)
                     test_chunk = word_chunk + [word]
                     test_chunk_text = " ".join(test_chunk)
                     test_chunk_tokens = self._count_tokens(test_chunk_text)
