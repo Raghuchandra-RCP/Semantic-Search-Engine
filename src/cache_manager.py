@@ -128,6 +128,11 @@ class CacheManager:
             try:
                 with self._get_connection() as conn:
                     cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO embeddings 
+                        (doc_id, embedding, hash, filename, updated_at, dimension, model_name, model_version)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
                         doc_id,
                         embedding_blob,
                         doc_hash,

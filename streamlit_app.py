@@ -137,14 +137,27 @@ def main():
         txt_files = list(docs_folder.glob("*.txt")) if docs_folder.exists() else []
         
         if not txt_files:
+            st.info("""
+            **No documents found. The app can automatically download a sample dataset for you.**
+            
+            Click the button below to download the 20 Newsgroups dataset (~11,000 documents).
+            This will take a few minutes on first run.
+            """)
             
             if st.button("📥 Download Sample Dataset", type="primary"):
                 if download_dataset():
-
+                    # Clear the cache so search engine reinitializes
                     initialize_search_engine.clear()
                     st.session_state.search_engine = None
                     st.rerun()
         else:
+            st.info("""
+            **Documents found but search engine failed to initialize.**
+            This might be due to:
+            - Model loading issues
+            - Index building errors
+            - Missing dependencies
+            """)
         
         if st.button("🔄 Retry Initialization"):
             st.session_state.search_engine = None
