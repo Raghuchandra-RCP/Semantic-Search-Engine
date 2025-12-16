@@ -5,7 +5,6 @@ from typing import List, Dict, Optional
 from pathlib import Path
 from .embedder import EmbeddingGenerator
 
-
 class VectorSearchEngine:
     
     def __init__(self, embedder: EmbeddingGenerator, index_file: str = "models/faiss_index.bin",
@@ -173,8 +172,10 @@ class VectorSearchEngine:
         if not self.index_file.exists():
             raise FileNotFoundError(f"Index file not found: {self.index_file}")
         
+
         if not self.mapping_file.exists():
             raise FileNotFoundError(f"Mapping file not found: {self.mapping_file}")
+        
         
         self.index = faiss.read_index(str(self.index_file))
         

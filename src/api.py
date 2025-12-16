@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict
 from .search_engine import VectorSearchEngine
 
-
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
@@ -19,17 +18,14 @@ class SearchRequest(BaseModel):
         if not self.query.strip():
             raise ValueError("Query cannot be empty")
 
-
 class SearchResult(BaseModel):
     doc_id: str
     score: float
     preview: str
     explanation: Optional[Dict] = None
 
-
 class SearchResponse(BaseModel):
     results: List[SearchResult]
-
 
 class SearchAPI:
     
@@ -133,7 +129,6 @@ class SearchAPI:
             "similarity_score": round(score, 4),
             "explanation_text": explanation_text
         }
-
 
 def create_app(search_engine: VectorSearchEngine) -> FastAPI:
     api = SearchAPI(search_engine)

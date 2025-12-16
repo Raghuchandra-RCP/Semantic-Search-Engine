@@ -3,7 +3,6 @@ from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 from .cache_manager import CacheManager
 
-
 class EmbeddingGenerator:
     
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2", 
@@ -26,15 +25,14 @@ class EmbeddingGenerator:
         self.max_seq_length = max_seq_length
         self.chunk_overlap = chunk_overlap
         
-        # Get tokenizer from the model - REQUIRED for token-based chunking
+
         self.tokenizer = None
         try:
-            # SentenceTransformer typically stores tokenizer in the first module
-            # Try multiple ways to access it
+
             if hasattr(self.model, 'tokenizer'):
                 self.tokenizer = self.model.tokenizer
             elif hasattr(self.model, '_modules'):
-                # Access the first module (usually the transformer)
+
                 modules = self.model._modules
                 if '0' in modules:
                     first_module = modules['0']
@@ -44,17 +42,17 @@ class EmbeddingGenerator:
                         auto_model = first_module.auto_model
                         if hasattr(auto_model, 'tokenizer'):
                             self.tokenizer = auto_model.tokenizer
-                # Try other module keys
+
                 for key in modules:
                     module = modules[key]
                     if hasattr(module, 'tokenizer'):
                         self.tokenizer = module.tokenizer
                         break
             
-            # Verify tokenizer is usable
+
             if self.tokenizer is not None:
                 try:
-                    # Test tokenizer with a simple string
+
                     test_tokens = self.tokenizer.encode("test", add_special_tokens=False)
                     if not isinstance(test_tokens, (list, tuple)) or len(test_tokens) == 0:
                         self.tokenizer = None
@@ -66,7 +64,7 @@ class EmbeddingGenerator:
             print(f"Error: Could not access tokenizer: {e}")
             self.tokenizer = None
         
-        # Tokenizer is REQUIRED - raise error if not found
+
         if self.tokenizer is None:
             raise RuntimeError(
                 "Tokenizer not available from the model. "
@@ -79,24 +77,15 @@ class EmbeddingGenerator:
         print(f"Embedding generator initialized (max_seq_length={max_seq_length}, chunk_overlap={chunk_overlap})")
     
     def _count_tokens(self, text: str) -> int:
-        """
-        Count tokens using the model's tokenizer.
-        REQUIRES tokenizer to be available - no fallbacks.
-        """
         if self.tokenizer is None:
             raise RuntimeError(
                 "Tokenizer not available. Cannot count tokens without tokenizer. "
                 "This should not happen if EmbeddingGenerator was properly initialized."
             )
         
-        # Use tokenizer to get actual token count
-        # Don't add special tokens for counting (we'll add them during encoding)
+
         tokens = self.tokenizer.encode(text, add_special_tokens=False)
         return len(tokens)
-    
-    def _estimate_tokens(self, text: str) -> int:
-        """Legacy method for backward compatibility. Use _count_tokens instead."""
-        return self._count_tokens(text)
     
     def _sentence_tokenize(self, text: str) -> List[str]:
         try:
@@ -121,26 +110,22 @@ class EmbeddingGenerator:
             return [s.strip() for s in result if s.strip()]
     
     def _chunk_text(self, text: str, chunk_size: int = None) -> List[str]:
-        """
-        Chunk text based on token counts using the model's tokenizer.
-        Ensures chunks stay under max_seq_length tokens with proper overlap.
-        """
         if chunk_size is None:
             chunk_size = self.max_seq_length
         
-        # Count total tokens in the text
+
         total_tokens = self._count_tokens(text)
         
-        # If text fits in one chunk, return as-is
+
         if total_tokens <= chunk_size:
             return [text]
         
-        # Split into sentences for better chunking
+
         sentences = self._sentence_tokenize(text)
         if not sentences:
             return [text]
         
-        # Count tokens per sentence
+
         sentence_tokens = []
         for sentence in sentences:
             token_count = self._count_tokens(sentence)
@@ -155,9 +140,9 @@ class EmbeddingGenerator:
         while i < len(sentence_tokens):
             sentence, sentence_token_count = sentence_tokens[i]
             
-            # Handle extremely long sentences that exceed chunk size
+
             if sentence_token_count > chunk_size:
-                # Split long sentence by words and chunk at word boundaries
+
                 words = sentence.split()
                 word_chunk = []
                 word_chunk_tokens = 0
@@ -167,12 +152,12 @@ class EmbeddingGenerator:
                     test_chunk_text = " ".join(test_chunk)
                     test_chunk_tokens = self._count_tokens(test_chunk_text)
                     
-                    # If adding this word would exceed chunk size, finalize current chunk
+
                     if test_chunk_tokens > chunk_size and word_chunk:
                         chunk_text = " ".join(word_chunk)
                         chunks.append(chunk_text)
                         
-                        # Start new chunk with overlap (last few words)
+
                         overlap_words = []
                         for w in reversed(word_chunk):
                             test_overlap = overlap_words + [w]
@@ -192,7 +177,7 @@ class EmbeddingGenerator:
                     word_chunk.append(word)
                     word_chunk_tokens = self._count_tokens(" ".join(word_chunk))
                 
-                # Add remaining words as current chunk
+
                 if word_chunk:
                     current_chunk_sentences = [" ".join(word_chunk)]
                     current_token_count = word_chunk_tokens
@@ -200,13 +185,13 @@ class EmbeddingGenerator:
                 i += 1
                 continue
             
-            # Check if adding this sentence would exceed chunk size
+
             test_chunk = current_chunk_sentences + [sentence]
             test_chunk_text = " ".join(test_chunk)
             test_chunk_tokens = self._count_tokens(test_chunk_text)
             
             if test_chunk_tokens > chunk_size and current_chunk_sentences:
-                # Finalize current chunk
+
                 chunk_text = " ".join(current_chunk_sentences)
                 chunks.append(chunk_text)
                 
@@ -227,12 +212,12 @@ class EmbeddingGenerator:
                 else:
                     current_token_count = 0
             
-            # Add sentence to current chunk
+
             current_chunk_sentences.append(sentence)
             current_token_count = self._count_tokens(" ".join(current_chunk_sentences))
             i += 1
         
-        # Add final chunk if it exists
+
         if current_chunk_sentences:
             chunk_text = " ".join(current_chunk_sentences)
             chunks.append(chunk_text)
@@ -240,17 +225,17 @@ class EmbeddingGenerator:
         if not chunks:
             return [text]
         
-        # Verify all chunks are within token limit and split further if needed
+
         verified_chunks = []
         for chunk in chunks:
             chunk_tokens = self._count_tokens(chunk)
             if chunk_tokens <= chunk_size:
                 verified_chunks.append(chunk)
             else:
-                # Chunk still too large, split further by words
+
                 print(f"    ⚠ Chunk exceeded {chunk_size} tokens ({chunk_tokens}), splitting further...")
                 
-                # Split into smaller chunks at word boundaries
+
                 words = chunk.split()
                 word_chunk = []
                 
@@ -310,7 +295,7 @@ class EmbeddingGenerator:
                         if not chunk or not chunk.strip():
                             continue
                         
-                        # Verify chunk size before encoding
+
                         chunk_tokens = self._count_tokens(chunk)
                         if chunk_tokens > self.max_seq_length:
                             print(f"    ⚠ Warning: Chunk {i+1} has {chunk_tokens} tokens (exceeds {self.max_seq_length})")
@@ -393,7 +378,7 @@ class EmbeddingGenerator:
                 cached_count += 1
 
             else:
-                # Use tokenizer-based token counting
+
                 token_count = self._count_tokens(doc_text)
                 if use_chunking and token_count > self.max_seq_length:
                     documents_to_embed_chunked.append(doc)

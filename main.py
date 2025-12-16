@@ -6,7 +6,6 @@ from src.search_engine import VectorSearchEngine
 from src.api import create_app
 import uvicorn
 
-
 def setup_search_engine(docs_folder: str = "data/docs"):
     print("=" * 60)
     print("Multi-document Embedding Search Engine")
@@ -54,7 +53,6 @@ def setup_search_engine(docs_folder: str = "data/docs"):
     
     return search_engine
 
-
 def main():
     docs_folder = "data/docs"
     if not Path(docs_folder).exists():
@@ -77,7 +75,6 @@ def main():
     print("=" * 60 + "\n")
     
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
 
 if __name__ == "__main__":
     main()

@@ -3,7 +3,6 @@ from pathlib import Path
 import sys
 import traceback
 
-# Set page config first
 st.set_page_config(
     page_title="Semantic Search Engine",
     page_icon="🔍",
@@ -11,7 +10,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Import with error handling
 try:
     from src.preprocessor import DocumentPreprocessor
     from src.embedder import EmbeddingGenerator
@@ -20,45 +18,33 @@ except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
 
-
 def download_dataset():
-    """Download the 20 Newsgroups dataset if it doesn't exist."""
     try:
-        from sklearn.datasets import fetch_20newsgroups
+        from download_dataset import download_and_save_dataset
         
         docs_folder = Path("data/docs")
         if docs_folder.exists() and list(docs_folder.glob("*.txt")):
             return True
         
+
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        def update_progress(current: int, total: int):
+            progress_bar.progress(current / total)
+            status_text.text(f"Downloaded {current}/{total} documents...")
+        
         with st.spinner("Downloading dataset (this may take a minute)..."):
-            dataset = fetch_20newsgroups(
-                subset='train',
-                remove=('headers', 'footers', 'quotes'),
-                shuffle=False
-            )
-            
-            docs_folder.mkdir(parents=True, exist_ok=True)
-            
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            total = len(dataset.data)
-            for i, (text, target) in enumerate(zip(dataset.data, dataset.target)):
-                category = dataset.target_names[target]
-                filename = f"doc_{i+1:03d}_{category.replace('.', '_')}.txt"
-                filepath = docs_folder / filename
-                
-                with open(filepath, 'w', encoding='utf-8') as f:
-                    f.write(text)
-                
-                if (i + 1) % 100 == 0 or i == total - 1:
-                    progress_bar.progress((i + 1) / total)
-                    status_text.text(f"Downloaded {i + 1}/{total} documents...")
+
+            result = download_and_save_dataset(progress_callback=update_progress)
             
             progress_bar.empty()
             status_text.empty()
-            st.success(f"✓ Downloaded {total} documents successfully!")
-            return True
+            
+            if result:
+                st.success("✓ Downloaded dataset successfully!")
+                return True
+            return False
             
     except Exception as e:
         st.error(f"Failed to download dataset: {e}")
@@ -67,52 +53,8 @@ def download_dataset():
             st.code(traceback.format_exc())
         return False
 
-st.markdown("""
-    <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 1rem;
-    }
-    .sub-header {
-        font-size: 1.1rem;
-        color: #666;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .result-card {
-        background-color: #f8f9fa;
-        padding: 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        border-left: 4px solid #1f77b4;
-    }
-    .score-badge {
-        display: inline-block;
-        background-color: #1f77b4;
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
-    .preview-text {
-        background-color: white;
-        padding: 1rem;
-        border-radius: 4px;
-        border: 1px solid #e0e0e0;
-        font-size: 0.95rem;
-        line-height: 1.6;
-        color: #333;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 if 'search_engine' not in st.session_state:
     st.session_state.search_engine = None
-
 
 @st.cache_resource
 def initialize_search_engine():
@@ -134,7 +76,7 @@ def initialize_search_engine():
                 
             documents_dict = {doc["doc_id"]: doc for doc in documents}
             
-            # Initialize embedder with error handling
+
             try:
                 embedder = EmbeddingGenerator()
             except Exception as e:
@@ -180,7 +122,6 @@ def initialize_search_engine():
             st.code(traceback.format_exc())
         return None
 
-
 def main():
     st.markdown('<h1 class="main-header">🔍 Semantic Search Engine</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">AI-powered document search using semantic embeddings</p>', unsafe_allow_html=True)
@@ -196,27 +137,14 @@ def main():
         txt_files = list(docs_folder.glob("*.txt")) if docs_folder.exists() else []
         
         if not txt_files:
-            st.info("""
-            **No documents found. The app can automatically download a sample dataset for you.**
-            
-            Click the button below to download the 20 Newsgroups dataset (~11,000 documents).
-            This will take a few minutes on first run.
-            """)
             
             if st.button("📥 Download Sample Dataset", type="primary"):
                 if download_dataset():
-                    # Clear the cache so search engine reinitializes
+
                     initialize_search_engine.clear()
                     st.session_state.search_engine = None
                     st.rerun()
         else:
-            st.info("""
-            **Documents found but search engine failed to initialize.**
-            This might be due to:
-            - Model loading issues
-            - Index building errors
-            - Missing dependencies
-            """)
         
         if st.button("🔄 Retry Initialization"):
             st.session_state.search_engine = None
@@ -254,10 +182,10 @@ def main():
         if st.button("🗑️ Clear Cache & Rebuild", type="secondary", use_container_width=True):
             with st.spinner("Clearing cache and rebuilding index..."):
                 try:
-                    # Clear Streamlit cache
+
                     initialize_search_engine.clear()
                     
-                    # Clear embeddings cache
+
                     import os
                     cache_files = [
                         "cache/embeddings_cache.db",
@@ -270,7 +198,7 @@ def main():
                         if cache_path.exists():
                             os.remove(cache_path)
                     
-                    # Clear FAISS index
+
                     index_files = [
                         "models/faiss_index.bin",
                         "models/doc_id_mapping.json"
@@ -280,7 +208,7 @@ def main():
                         if index_path.exists():
                             os.remove(index_path)
                     
-                    # Reset search engine
+
                     st.session_state.search_engine = None
                     
                     st.success("✅ Cache cleared! Reinitializing search engine...")
@@ -350,7 +278,6 @@ def main():
         '</div>',
         unsafe_allow_html=True
     )
-
 
 if __name__ == "__main__":
     main()

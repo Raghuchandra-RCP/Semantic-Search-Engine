@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import List, Dict
 from .utils import clean_text, compute_hash
 
-
 class DocumentPreprocessor:
     
     def __init__(self, docs_folder: str):

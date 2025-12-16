@@ -6,7 +6,6 @@ from typing import Dict, Optional, List
 from datetime import datetime
 import threading
 
-
 class CacheManager:
     
     def __init__(self, cache_db: str = "cache/embeddings_cache.db"):
@@ -19,21 +18,6 @@ class CacheManager:
     def _init_database(self):
         with sqlite3.connect(str(self.cache_db), timeout=30.0) as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS embeddings (
-                    doc_id TEXT PRIMARY KEY,
-                    embedding BLOB NOT NULL,
-                    hash TEXT NOT NULL,
-                    filename TEXT,
-                    updated_at TEXT NOT NULL,
-                    dimension INTEGER NOT NULL,
-                    model_name TEXT,
-                    model_version TEXT
-                )
-            """)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_hash ON embeddings(hash)
-            """)
             self._validate_and_clean_cache(conn)
             conn.commit()
     
@@ -100,10 +84,6 @@ class CacheManager:
             try:
                 with self._get_connection() as conn:
                     cursor = conn.cursor()
-                    cursor.execute("""
-                        SELECT embedding, dimension FROM embeddings 
-                        WHERE doc_id = ? AND hash = ?
-                    """, (doc_id, current_hash))
                     
                     result = cursor.fetchone()
                     if result:
@@ -148,11 +128,6 @@ class CacheManager:
             try:
                 with self._get_connection() as conn:
                     cursor = conn.cursor()
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO embeddings 
-                        (doc_id, embedding, hash, filename, updated_at, dimension, model_name, model_version)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
                         doc_id,
                         embedding_blob,
                         doc_hash,
